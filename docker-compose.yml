@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  mysqldb:
+    image: mysql:8.0
+    container_name: MySQLDB
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: sup3r_s3cr3t
+      MYSQL_DATABASE: catalog
+
+  config-server:
+    container_name: config-server
+    build: ./config-server
+    volumes:
+      - './config:/config'
+    ports:
+    - "18888:8888"
+    - "18787:8787"
+
+  catalog-service:
+    container_name: catalog-service
+    build: ./catalog-service
+    ports:
+      - "18181:8181"
+      - "19797:8787"
+    depends_on:
+      - config-server
+      - mysqldb
+    entrypoint: /bin/sh
+    command: >
+      -c "while ! (nc -z config-server 8888); do sleep 5; echo 'Waiting for config-server service to start-up...'; done;
+      java -Xdebug -Xrunjdwp:server=y,transport=dt_socket,address=8787,suspend=n -jar -Dspring.profiles.active=docker /app.jar"
